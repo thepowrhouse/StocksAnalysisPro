@@ -181,37 +181,120 @@ class MLChartPatternDetector:
         return best_matches
 
     def _identify_key_levels(self, prices):
-        """Identify key support and resistance levels across the entire dataset"""
+        """
+        Identify key support and resistance levels using multiple methods
+        """
         if len(prices) < 20:
             return np.nan, np.nan
 
-        # Find significant peaks and troughs
-        window_length = min(21, len(prices) // 4 * 2 + 1)
-        if window_length < 3:
-            window_length = 3
+        try:
+            current_price = float(prices[-1])
 
-        smoothed_prices = savgol_filter(prices, window_length=window_length, polyorder=2)
+            # Method 1: Find significant highs and lows using peak detection
+            min_distance = max(10, len(prices) // 20)  # Minimum distance between peaks
 
-        # Find peaks and troughs
-        peaks, peak_properties = find_peaks(smoothed_prices, distance=len(prices) // 10)
-        troughs, trough_properties = find_peaks(-smoothed_prices, distance=len(prices) // 10)
+            # Find peaks (potential resistance)
+            peaks, peak_properties = find_peaks(prices, distance=min_distance, prominence=np.std(prices) * 0.5)
 
-        # Calculate support and resistance based on significant levels
-        if len(troughs) > 0:
-            # Support: average of significant lows
-            trough_prices = smoothed_prices[troughs]
-            support = np.mean(trough_prices[-3:]) if len(trough_prices) >= 3 else np.min(trough_prices)
-        else:
-            support = np.min(smoothed_prices) * 0.98
+            # Find troughs (potential support)
+            troughs, trough_properties = find_peaks(-prices, distance=min_distance, prominence=np.std(prices) * 0.5)
 
-        if len(peaks) > 0:
-            # Resistance: average of significant highs
-            peak_prices = smoothed_prices[peaks]
-            resistance = np.mean(peak_prices[-3:]) if len(peak_prices) >= 3 else np.max(peak_prices)
-        else:
-            resistance = np.max(smoothed_prices) * 1.02
+            # Method 2: Calculate pivot points from recent highs and lows
+            recent_period = min(50, len(prices) // 2)
+            recent_prices = prices[-recent_period:]
+            recent_high = np.max(recent_prices)
+            recent_low = np.min(recent_prices)
 
-        return support, resistance
+            # Method 3: Calculate support and resistance levels
+            support_candidates = []
+            resistance_candidates = []
+
+            # From peaks and troughs
+            if len(troughs) > 0:
+                trough_prices = prices[troughs]
+                # Only consider troughs below current price for support
+                valid_troughs = trough_prices[trough_prices <= current_price]
+                if len(valid_troughs) > 0:
+                    support_candidates.extend(valid_troughs)
+
+            if len(peaks) > 0:
+                peak_prices = prices[peaks]
+                # Only consider peaks above current price for resistance
+                valid_peaks = peak_prices[peak_prices >= current_price]
+                if len(valid_peaks) > 0:
+                    resistance_candidates.extend(valid_peaks)
+
+            # Add recent highs and lows as candidates
+            if recent_low <= current_price:
+                support_candidates.append(recent_low)
+            if recent_high >= current_price:
+                resistance_candidates.append(recent_high)
+
+            # Add historical significant levels
+            # Look for price levels that were tested multiple times
+            price_levels = np.round(prices, 2)  # Round to nearest cent
+            unique_levels, counts = np.unique(price_levels, return_counts=True)
+
+            # Find levels that were tested at least 3 times
+            significant_levels = unique_levels[counts >= 3]
+
+            for level in significant_levels:
+                if level <= current_price:
+                    support_candidates.append(level)
+                elif level >= current_price:
+                    resistance_candidates.append(level)
+
+            # Calculate final support and resistance
+            if support_candidates:
+                # Take the highest support level (closest to current price)
+                support_candidates = [s for s in support_candidates if s <= current_price]
+                if support_candidates:
+                    support = max(support_candidates)
+                else:
+                    support = recent_low * 0.95  # Fallback
+            else:
+                # Fallback: use recent low with some buffer
+                support = recent_low * 0.95
+
+            if resistance_candidates:
+                # Take the lowest resistance level (closest to current price)
+                resistance_candidates = [r for r in resistance_candidates if r >= current_price]
+                if resistance_candidates:
+                    resistance = min(resistance_candidates)
+                else:
+                    resistance = recent_high * 1.05  # Fallback
+            else:
+                # Fallback: use recent high with some buffer
+                resistance = recent_high * 1.05
+
+            # Ensure support is below current price and resistance is above
+            if support >= current_price:
+                support = current_price * 0.95
+            if resistance <= current_price:
+                resistance = current_price * 1.05
+
+            # Additional validation: ensure reasonable spread
+            price_range = np.max(prices) - np.min(prices)
+            min_spread = price_range * 0.02  # Minimum 2% of total range
+
+            if (current_price - support) < min_spread:
+                support = current_price - min_spread
+            if (resistance - current_price) < min_spread:
+                resistance = current_price + min_spread
+
+            return float(support), float(resistance)
+
+        except Exception as e:
+            print(f"Error calculating support/resistance: {e}")
+            # Fallback calculation
+            try:
+                current_price = float(prices[-1])
+                price_std = np.std(prices)
+                support = current_price - (price_std * 1.5)
+                resistance = current_price + (price_std * 1.5)
+                return float(support), float(resistance)
+            except:
+                return np.nan, np.nan
 
     def _generate_recommendation(self, pattern_name, trend_strength, trend_direction, volatility, current_vs_support,
                                  current_vs_resistance):
@@ -355,10 +438,10 @@ def detect_chart_pattern(prices, volumes=None):
         try:
             prices_array = np.array(prices, dtype=np.float64).flatten()
             if len(prices_array) > 0:
-                min_price = float(np.min(prices_array))
-                max_price = float(np.max(prices_array))
-                support = min_price * 0.95
-                resistance = max_price * 1.05
+                current_price = float(prices_array[-1])
+                price_std = np.std(prices_array)
+                support = current_price - (price_std * 1.5)
+                resistance = current_price + (price_std * 1.5)
                 return "Error in detection", "hold", support, resistance, {}
             else:
                 return "Error in detection", "hold", 0.0, 0.0, {}

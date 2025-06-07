@@ -127,10 +127,10 @@ def add_pattern_overlay(fig, data, pattern_info, pattern_name, row=1, col=1):
             arrowcolor="purple",
             ax=0,
             ay=-30,
-            bgcolor="rgba(147, 112, 219, 0.8)",
+            bgcolor="rgba(240, 240, 240, 0.8)",
             bordercolor="purple",
             borderwidth=2,
-            font=dict(color="white", size=10),
+            font=dict(color="black", size=10),
             row=row, col=col
         )
 
@@ -151,9 +151,9 @@ def add_support_resistance_overlay(fig, support_val, resistance_val, data, row=1
             annotation_text=f"Support: ₹{support_val:.2f}",
             annotation_position="bottom right",
             annotation=dict(
-                bgcolor="rgba(0, 128, 0, 0.8)",
+                bgcolor="rgba(240, 240, 240, 0.8)",
                 bordercolor="green",
-                font=dict(color="white")
+                font=dict(color="black")
             ),
             row=row, col=col
         )
@@ -178,9 +178,9 @@ def add_support_resistance_overlay(fig, support_val, resistance_val, data, row=1
             annotation_text=f"Resistance: ₹{resistance_val:.2f}",
             annotation_position="top right",
             annotation=dict(
-                bgcolor="rgba(255, 0, 0, 0.8)",
+                bgcolor="rgba(240, 240, 240, 0.8)",
                 bordercolor="red",
-                font=dict(color="white")
+                font=dict(color="black")
             ),
             row=row, col=col
         )
@@ -786,50 +786,58 @@ if uploaded_file is not None:
                                 opacity=0.7
                             ), row=1, col=1)
 
-                        # 6. Update layout for a professional look
-                        fig.update_layout(
-                            title={
-                                'text': f"{selected_row['Name']} ({selected_row['Ticker']}) - Technical Analysis",
-                                'x': 0.5,
-                                'xanchor': 'center',
-                                'font': {'size': 18}
-                            },
-                            height=700,
-                            xaxis_rangeslider_visible=False,
-                            yaxis_title="Price (₹)",
-                            yaxis2_title="Volume",
-                            showlegend=True,
-                            legend=dict(
-                                orientation="h",
-                                yanchor="bottom",
-                                y=1.02,
-                                xanchor="right",
-                                x=1
-                            ),
-                            plot_bgcolor='rgba(240, 240, 240, 0.5)',
-                            paper_bgcolor='white',
-                            font=dict(size=12)
-                        )
+                            # 6. Update layout for a professional look
+                            fig.update_layout(
+                                title={
+                                    'text': f"{selected_row['Name']} ({selected_row['Ticker']}) - Technical Analysis",
+                                    'x': 0.5,
+                                    'xanchor': 'center',
+                                    'font': {'size': 18, 'color': 'black'}  # Set title color
+                                },
+                                height=700,
+                                xaxis_rangeslider_visible=False,
+                                showlegend=True,
+                                legend=dict(
+                                    orientation="h",
+                                    yanchor="bottom",
+                                    y=1.02,
+                                    xanchor="right",
+                                    x=1,
+                                    bgcolor='rgba(255, 255, 255, 0.95)',  # Make legend background more opaque
+                                    bordercolor="black",
+                                    borderwidth=1,
+                                    font=dict(color="black")  # Set legend font color
+                                ),
+                                plot_bgcolor='rgba(240, 240, 240, 0.5)',
+                                paper_bgcolor='white',
+                                font=dict(size=12, color="black")  # Set global font color for better visibility
+                            )
 
-                        # Update axes
-                        fig.update_xaxes(
-                            title_text="Date",
-                            gridcolor='rgba(128, 128, 128, 0.3)',
-                            row=2, col=1
-                        )
-                        fig.update_yaxes(
-                            title_text="Price (₹)",
-                            gridcolor='rgba(128, 128, 128, 0.3)',
-                            row=1, col=1
-                        )
-                        fig.update_yaxes(
-                            title_text="Volume",
-                            gridcolor='rgba(128, 128, 128, 0.3)',
-                            row=2, col=1
-                        )
+                            # Update axes for better visibility
+                            fig.update_xaxes(
+                                title_text="Date",
+                                gridcolor='rgba(128, 128, 128, 0.3)',
+                                title_font=dict(color='black'),
+                                tickfont=dict(color='black'),
+                                row=2, col=1
+                            )
+                            fig.update_yaxes(
+                                title_text="Price (₹)",
+                                gridcolor='rgba(128, 128, 128, 0.3)',
+                                title_font=dict(color='black'),
+                                tickfont=dict(color='black'),
+                                row=1, col=1
+                            )
+                            fig.update_yaxes(
+                                title_text="Volume",
+                                gridcolor='rgba(128, 128, 128, 0.3)',
+                                title_font=dict(color='black'),
+                                tickfont=dict(color='black'),
+                                row=2, col=1
+                            )
 
-                        # Display the chart
-                        st.plotly_chart(fig, use_container_width=True, theme="streamlit")
+                        # Display the chart without Streamlit's theme override
+                        st.plotly_chart(fig, use_container_width=True)
 
                         # Add technical indicators summary
                         st.subheader("📊 Technical Indicators Summary")
